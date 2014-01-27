@@ -21,17 +21,18 @@ Filter:
 All services return status_code 500 if there is any error.
 
 """
+import logging
 
 import tornado.ioloop
-from tornado.options import define, options, logging
+from tornado.options import define, options
 import tornado.web
-import uuid
 
 from oauth.google import GoogleOAuth2Handler, GoogleSignoutHandler
 from oauth.decorator import OAuthenticated
 from datastores.mongo import MongoDbQueryHandler
 from datastores.localfiles import LocalFileHandler
 from storage.mongo import MongoDbStorageHandler, GetUserinfo
+from storage.collections import MongoDbCollectionsHandler
 from scc.github import GitWebHookHandler
 
 from tabix.tabix_lookup import TabixLookupHandler
@@ -44,6 +45,7 @@ define("client_secret", help="Client Secrets for Google OAuth2")
 define("config_file", help="Path to config file")
 define("authorized_users", default=[], help="List of authorized user emails")
 define("mongo_storage_uri", default="mongodb://localhost:27017", help="MongoDB URI in the form mongodb://username:password@hostname:port")
+define("mongo_storage_db", default="storage_db", help="MongoDB database name")
 
 define("mongo_datastores", default=[("ds", "mongodb://localhost:27017")], help="Lookup MongoDB configurations")
 define("mongo_rows_limit", default=1000, type=int, help="Lookup MongoDB limit on rows returned from query")
@@ -62,7 +64,7 @@ define("tabix_lookups", default={}, help="Tabix lookups configurations")
 
 settings = {
     "debug": True,
-    "cookie_secret": uuid.uuid4()
+    "cookie_secret": "not_a_big_secret"
 }
 
 server_settings = {
@@ -77,10 +79,10 @@ class DataStoreConfiguration(object):
 
     def get_uri(self):
         return self._uri
-    
+
     def set_uri(self, uri):
         self._uri = uri
-    
+
     def is_case_sensitive_database(self, database_name):
         return database_name in self.case_sensitive_databases
 
@@ -154,13 +156,15 @@ def main():
         options.parse_config_file(options.config_file)
         options.parse_command_line()
 
-    settings["cookie_secret"] = options.client_secret
+    if options.client_secret:
+        settings["cookie_secret"] = options.client_secret
 
     logging.info("Starting Tornado web server on http://localhost:%s" % options.port)
     logging.info("--data_path=%s" % options.data_path)
     logging.info("--client_host=%s" % options.client_host)
     logging.info("--authorized_users=%s" % options.authorized_users)
     logging.info("--mongo_storage_uri=%s" % options.mongo_storage_uri)
+    logging.info("--mongo_storage_db=%s" % options.mongo_storage_db)
     logging.info("--mongo_rows_limit=%s" % options.mongo_rows_limit)
 
     if not options.config_file is None:
@@ -189,6 +193,7 @@ def main():
         (r"/datastores/(.*)", MongoDbQueryHandler),
         (r"/data?(.*)", LocalFileHandler),
         (r"/storage/(.*)", MongoDbStorageHandler),
+        (r"/collections/(.*)", MongoDbCollectionsHandler),
         (r"/tabix/(\w+)/(X|Y|M|\d{1,2})/(\d+)", TabixLookupHandler),
         (r"/tabix/(\w+)/(X|Y|M|\d{1,2})/(\d+)/(\d+)", TabixLookupHandler),
         (r"/gitWebHook?(.*)", GitWebHookHandler)
