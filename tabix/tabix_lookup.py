@@ -44,7 +44,8 @@ class TabixLookupHandler(tornado.web.RequestHandler):
                 "chr": result.chromosome,
                 "start": result.start,
                 "end": result.end,
-                "values": result.values
+                "values": result.values,
+                "info": result.info
             }
             
             self.write(json.dumps(response, sort_keys=True))
