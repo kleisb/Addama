@@ -45,6 +45,7 @@ class TabixLookupHandler(tornado.web.RequestHandler):
                 "start": result.start,
                 "end": result.end,
                 "values": result.values,
+                "snpid": result.snpid,
                 "info": result.info
             }
             

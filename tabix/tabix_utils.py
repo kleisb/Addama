@@ -5,11 +5,12 @@ import StringIO
 from subprocess import check_output
 
 class MultilineTabixResult():
-    def __init__(self, chromosome, start, end, values, info=None):
+    def __init__(self, chromosome, start, end, values, info=None, snpid=None):
         self.set_chromosome(chromosome)
         self.set_start(start)
         self.set_end(end)
         self.set_values(values)
+        self.set_snpid(snpid)
         self.set_info(info)
     
     def get_chromosome(self):
@@ -36,6 +37,15 @@ class MultilineTabixResult():
     def set_values(self, values):
         self.values = values
 
+    def get_snpid(self):
+        return self.snpid
+    
+    def set_snpid(self, snpid):
+        if snpid == None:
+            self.snpid = ""
+        else:
+            self.snpid = snpid
+
     def get_info(self):
         return self.info
     
@@ -49,6 +59,7 @@ class MultilineTabixResult():
     start = property(get_start, set_start)
     end = property(get_end, set_end)
     values = property(get_values, set_values)
+    snpid = property(get_snpid, set_snpid)
     info = property(get_info, set_info)
 
 def create_tabix_command(tabix_path, vcf_path, chromosome, start, end):
@@ -58,14 +69,16 @@ def create_tabix_command(tabix_path, vcf_path, chromosome, start, end):
 
 def parse_vcf_line(row):
     # #CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT    <values ..... >
+    VCF_SNP_ID_COLUMN_INDEX = 2
     VCF_INFO_COLUMN_INDEX = 7
     VCF_VALUE_START_INDEX = 9
 
     split_row = row.split('\t')
     chromosome, coordinate = split_row[:2]
+    snpid = split_row[VCF_SNP_ID_COLUMN_INDEX]
     info_field = split_row[VCF_INFO_COLUMN_INDEX]
     values = map(lambda x: x.strip(), split_row[VCF_VALUE_START_INDEX:])
-    return MultilineTabixResult(chromosome, coordinate, coordinate, values, info_field)
+    return MultilineTabixResult(chromosome, coordinate, coordinate, values, info=info_field, snpid=snpid)
 
 def parse_region_lookup_result(data):
     reader = csv.DictReader(StringIO.StringIO(data), delimiter='\t')
